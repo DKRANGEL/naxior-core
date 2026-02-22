@@ -5,7 +5,7 @@ import Sidebar from '../components/Sidebar'
 import TopBar from '../components/TopBar'
 import {createClient} from '@/lib/supabase'
 
-const empty = {name: '', company: '', email: '', whatsapp: '', notes: ''}
+const empty = {name: '', company: '', email: '', whatsapp: '', cnpj: '', notes: ''}
 
 export default function ClientsPage() {
     const [clients, setClients] = useState([])
@@ -57,7 +57,8 @@ export default function ClientsPage() {
             company: client.company || '',
             email: client.email || '',
             whatsapp: client.whatsapp || '',
-            notes: client.notes || ''
+            cnpj: client.cnpj || '',
+            notes: client.notes || '',
         })
         setShowForm(true)
     }
@@ -83,7 +84,6 @@ export default function ClientsPage() {
                 <TopBar title="CLIENTES"/>
                 <div style={S.content}>
 
-                    {/* Header row */}
                     <div style={S.row}>
                         <input
                             placeholder="Buscar por nome, empresa ou e-mail..."
@@ -93,12 +93,11 @@ export default function ClientsPage() {
                         <button onClick={handleNew} style={S.btnPrimary}>+ Novo Cliente</button>
                     </div>
 
-                    {/* Form */}
                     {showForm && (
                         <div style={S.formCard}>
                             <div style={{...S.row, marginBottom: '20px'}}>
                                 <span style={S.formTitle}>{selected ? 'Editar Cliente' : 'Novo Cliente'}</span>
-                                <button onClick={() => setShowForm(false)} style={S.btnGhost}>✕ Fechar</button>
+                                <button onClick={() => setShowForm(false)} style={S.btnGhost}>Fechar</button>
                             </div>
                             <form onSubmit={handleSave}>
                                 <div style={S.grid2}>
@@ -111,6 +110,11 @@ export default function ClientsPage() {
                                         <label style={S.label}>Empresa</label>
                                         <input style={S.input} value={form.company}
                                                onChange={e => setForm({...form, company: e.target.value})}/>
+                                    </div>
+                                    <div style={S.field}>
+                                        <label style={S.label}>CNPJ</label>
+                                        <input style={S.input} value={form.cnpj} placeholder="00.000.000/0000-00"
+                                               onChange={e => setForm({...form, cnpj: e.target.value})}/>
                                     </div>
                                     <div style={S.field}>
                                         <label style={S.label}>E-mail</label>
@@ -141,7 +145,6 @@ export default function ClientsPage() {
                         </div>
                     )}
 
-                    {/* Table */}
                     {loading ? (
                         <p style={{color: '#6b6b6b', fontSize: '13px'}}>Carregando...</p>
                     ) : filtered.length === 0 ? (
@@ -155,14 +158,16 @@ export default function ClientsPage() {
                             <div style={S.thead}>
                                 <span style={{flex: 2}}>Nome</span>
                                 <span style={{flex: 2}}>Empresa</span>
+                                <span style={{flex: 2}}>CNPJ</span>
                                 <span style={{flex: 2}}>E-mail</span>
                                 <span style={{flex: 1}}>WhatsApp</span>
-                                <span style={{flex: 1, textAlign: 'right'}}>Ações</span>
+                                <span style={{flex: 1, textAlign: 'right'}}>Acoes</span>
                             </div>
                             {filtered.map(c => (
                                 <div key={c.id} style={S.trow}>
                                     <span style={{flex: 2, color: '#fff', fontWeight: '500'}}>{c.name}</span>
                                     <span style={{flex: 2, color: '#6b6b6b'}}>{c.company || '—'}</span>
+                                    <span style={{flex: 2, color: '#6b6b6b', fontSize: '12px'}}>{c.cnpj || '—'}</span>
                                     <span style={{flex: 2, color: '#6b6b6b'}}>{c.email || '—'}</span>
                                     <span style={{flex: 1, color: '#6b6b6b'}}>{c.whatsapp || '—'}</span>
                                     <span style={{flex: 1, display: 'flex', gap: '8px', justifyContent: 'flex-end'}}>
@@ -255,8 +260,7 @@ const styles = {
         padding: '16px 20px',
         borderBottom: '1px solid #1f1f1f',
         fontSize: '13px',
-        alignItems: 'center',
-        transition: 'background 0.15s'
+        alignItems: 'center'
     },
     empty: {
         background: '#101010',
