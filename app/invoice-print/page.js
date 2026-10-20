@@ -173,18 +173,48 @@ export default function InvoicePrintPage() {
         footer { margin-top: 40px; text-align: center; border-top: 1px solid var(--border); padding-top: 18px; }
         .slogan { color: var(--accent); letter-spacing: 2px; font-size: 11px; text-transform: uppercase; }
 
+        @page { size: A4; margin: 0; }
+
         @media print {
-          body {
+          html, body {
             background: #0A0A0A;
+            width: auto;
+            height: 297mm;
+            margin: 0;
             padding: 0;
-            display: block;
-          }
-          .invoice-paper {
-            width: 100%;
-            box-shadow: none;
+            display: block !important;
+            min-height: 0;
+            overflow: visible;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
+          /* fundo que cobre a folha inteira, independente de arredondamento de largura */
+          body::before {
+            content: '';
+            position: fixed;
+            top: -10mm; left: -10mm; right: -10mm; bottom: -10mm;
+            background: #0A0A0A;
+            z-index: -1;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          .invoice-paper {
+            width: auto;
+            height: 297mm;
+            padding: 14mm 18mm;
+            box-shadow: none;
+            background: transparent;
+            overflow: hidden;
+            break-after: avoid;
+            page-break-after: avoid;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          .header { padding-bottom: 20px; margin-bottom: 24px; }
+          .info-grid { margin-bottom: 24px; }
+          table { margin-bottom: 24px; }
+          .total-box { margin-bottom: 24px; }
+          footer { margin-top: 24px; }
         }
       `}</style>
 
