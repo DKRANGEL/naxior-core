@@ -12,18 +12,40 @@ function onlyDigits(value) {
     return (value || '').replace(/\D/g, '')
 }
 
+// Devolve o status de origem junto com o corpo: sem isso um 429 da BrasilAPI
+// chega ao usuario como "nao encontrado" e o motivo real se perde.
 async function fetchJson(url) {
-    const res = await fetch(url, {next: {revalidate: 86400}})
-    if (!res.ok) return null
-    return res.json()
+    // O fetch do Node nao envia User-Agent, e o WAF na frente da BrasilAPI
+    // responde 403 quando o header esta ausente.
+    const res = await fetch(url, {
+        headers: {'user-agent': 'naxior-core/1.0', accept: 'application/json'},
+        next: {revalidate: 86400},
+    })
+    if (!res.ok) {
+        const texto = await res.text().catch(() => '')
+        return {ok: false, status: res.status, body: texto.slice(0, 200)}
+    }
+    return {ok: true, data: await res.json()}
+}
+
+class UpstreamError extends Error {
+    constructor(status, body) {
+        super(`BrasilAPI respondeu ${status}`)
+        this.status = status
+        this.body = body
+    }
 }
 
 async function lookupCep(cep) {
     const digits = onlyDigits(cep)
     if (digits.length !== 8) return null
 
-    const data = await fetchJson(`${BRASIL_API}/cep/v2/${digits}`)
-    if (!data) return null
+    const res = await fetchJson(`${BRASIL_API}/cep/v2/${digits}`)
+    if (!res.ok) {
+        if (res.status === 404) return null
+        throw new UpstreamError(res.status, res.body)
+    }
+    const data = res.data
 
     return {
         cep: digits,
@@ -39,8 +61,12 @@ async function lookupCnpj(cnpj) {
     const digits = onlyDigits(cnpj)
     if (digits.length !== 14) return null
 
-    const data = await fetchJson(`${BRASIL_API}/cnpj/v1/${digits}`)
-    if (!data) return null
+    const res = await fetchJson(`${BRASIL_API}/cnpj/v1/${digits}`)
+    if (!res.ok) {
+        if (res.status === 404) return null
+        throw new UpstreamError(res.status, res.body)
+    }
+    const data = res.data
 
     const base = {
         tipo_pessoa: 'PJ',
@@ -60,8 +86,9 @@ async function lookupCnpj(cnpj) {
         opcao_pelo_mei: Boolean(data.opcao_pelo_mei),
     }
 
-    // O IBGE so vem pela consulta de CEP.
-    const porCep = await lookupCep(base.cep)
+    // O IBGE so vem pela consulta de CEP. Se ela falhar, ainda vale devolver o
+    // resto do cadastro: o usuario completa o codigo na mao.
+    const porCep = await lookupCep(base.cep).catch(() => null)
     if (porCep) {
         base.codigo_municipio_ibge = porCep.codigo_municipio_ibge
         // O cadastro da Receita costuma estar mais desatualizado que a base de CEP.
@@ -92,6 +119,14 @@ export async function GET(request) {
 
         return NextResponse.json({error: 'Informe cnpj ou cep'}, {status: 400})
     } catch (err) {
+        if (err instanceof UpstreamError) {
+            console.error('lookup: BrasilAPI', err.status, err.body)
+            return NextResponse.json(
+                {error: `Consulta externa falhou (HTTP ${err.status}).`, upstream: err.body},
+                {status: 502}
+            )
+        }
+        console.error('lookup:', err)
         return NextResponse.json({error: 'Falha na consulta externa'}, {status: 502})
     }
 }
