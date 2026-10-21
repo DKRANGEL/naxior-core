@@ -47,11 +47,24 @@ export default function ClientsPage() {
     async function handleSave(e) {
         e.preventDefault()
         setSaving(true)
-        if (selected) {
-            await supabase.from('clients').update(form).eq('id', selected.id)
-        } else {
-            await supabase.from('clients').insert(form)
+
+        // Os checks de UF e IBGE aceitam nulo, mas nao string vazia.
+        const payload = {}
+        for (const [key, value] of Object.entries(form)) {
+            payload[key] = typeof value === 'string' && value.trim() === '' ? null : value
         }
+        payload.tipo_pessoa = form.tipo_pessoa || 'PJ'
+
+        const {error} = selected
+            ? await supabase.from('clients').update(payload).eq('id', selected.id)
+            : await supabase.from('clients').insert(payload)
+
+        if (error) {
+            setSaving(false)
+            setLookup({busy: false, msg: 'Nao foi possivel salvar: ' + error.message})
+            return
+        }
+
         setSaving(false)
         setForm(empty)
         setShowForm(false)
